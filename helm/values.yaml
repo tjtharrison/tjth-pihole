@@ -1,6 +1,6 @@
 name: pihole
 namespace: pihole
-replicas: 2
+replicas: 1
 node_affinity: False
 security_context: '[ "NET_ADMIN" ]'
 image: pihole/pihole:2023.05.2
