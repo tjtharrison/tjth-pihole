@@ -1,0 +1,20 @@
+{{ if gt (len .Values.pvc) 0}}
+{{ range .Values.pvc }}
+---
+# PVC
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .name }}
+  namespace: {{ $.Values.namespace }}
+  labels:
+    app: {{ $.Values.name }}
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: longhorn
+  resources:
+    requests:
+      storage: {{ .storage }}
+{{ end }}
+{{ end }}
