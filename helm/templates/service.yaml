@@ -19,3 +19,4 @@ spec:
   {{ end }}
   selector:
     app: {{ .Values.name }}
+  externalTrafficPolicy: {{ .Values.external_traffic_policy }}

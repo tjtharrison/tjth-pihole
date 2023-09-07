@@ -40,3 +40,4 @@ pvc:
     storage: 1Gi
   - name: pihole-dnsmasq
     storage: 500Mi
+external_traffic_policy: Local
