@@ -1,0 +1,81 @@
+# Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.name }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Values.name }}
+    app.kubernetes.io/managed-by: Helm
+    meta.helm.sh/release-name: {{ .Release.Name }}
+  annotations:
+    app.kubernetes.io/managed-by: Helm
+    meta.helm.sh/release-name: {{ .Release.Name }}
+    meta.helm.sh/release-namespace: default
+spec:
+  replicas: {{ .Values.replicas }}
+  selector:
+    matchLabels:
+      app: {{ .Values.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.name }}
+    spec:
+      {{ if .Values.node_affinity }}
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: "app"
+                    operator: In
+                    values:
+                      - {{ .Values.name }}
+              topologyKey: "kubernetes.io/hostname"
+      {{ end}}
+      containers:
+        - name: {{ .Values.name }}
+          {{ if gt (len .Values.security_context) 0}}
+          securityContext:
+            capabilities:
+              add: {{ .Values.security_context }}
+          {{ end }}
+          image: {{ .Values.image }}
+          {{ if gt (len .Values.ports) 0}}
+          ports:
+            {{ range .Values.ports }}
+            - containerPort: {{ .containerPort }}
+              protocol: {{ .protocol }}
+              name: {{ .name }}
+            {{ end }}
+          {{ end }}
+          {{- if or (gt (len .Values.env) 0) (gt (len .Values.env_from) 0) }}
+          env:
+            {{ range .Values.env }}
+            - name: {{ .name }}
+              value: {{ .value }}
+            {{ end }}
+            {{ range .Values.env_from }}
+            - name: {{ .name }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .secret_key_name }}
+                  key: {{ .key }}
+            {{ end }}
+          {{ end }}
+          {{ if gt (len .Values.volume_mounts) 0}}
+          volumeMounts:
+            {{ range .Values.volume_mounts }}
+            - name: {{ .name }}
+              mountPath: {{ .mountPath }}
+            {{ end }}
+          {{ end }}
+      {{ if gt (len .Values.volumes) 0}}
+      volumes:
+        {{ range .Values.volumes }}
+        - name: {{ .name }}
+          persistentVolumeClaim:
+            claimName: {{ .claimName }}
+        {{ end }}
+      {{ end }}

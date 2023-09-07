@@ -1,25 +1,35 @@
 # tjth-pihole
+
 Docker deployment for pihole
 
 # Kubernetes deployment
 
-First, install namespaces:
+Kubernetes deployment is achieved using Helm and the following commands.
 
-```commandline
-kubectl apply -f namespaces.yaml
+NOTE: This project requires the following tools to be installed on the cluster:
+
+* Longhorn for persistent storage
+* MetalLB for load balancing
+* Sealed Secrets for secret management
+
+```
+cd helm
 ```
 
-Then, create secrets:
+The below command can be used to write a new web password to the secrets.yaml file (replace secrets.yaml as required).
 
-```commandline
-kubectl create secret generic pihole-web-password --from-literal=password=<password> --namespace pihole
+```
+kubectl create secret generic pihole-web-password --from-literal=password=<password> --dry-run=client -o yaml | 
+kubeseal \
+      --controller-name=sealed-secrets \
+      --controller-namespace=default \
+      --namespace pihole \
+      --format yaml > secrets.yaml
 ```
 
-Finally, deploy the manifests:
+Finally, use the following command to deploy the chart.
 
-```commandline
-kubectl apply -f pihole.yaml
+```
+helm install pihole .
 ```
 
-
-pihole-FTL sqlite3 /etc/pihole/pihole-FTL.db "VACUUM INTO 'pihole-FTL.backup.db'"
