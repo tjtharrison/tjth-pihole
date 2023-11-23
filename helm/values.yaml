@@ -3,7 +3,7 @@ namespace: pihole
 replicas: 1
 node_affinity: False
 security_context: '[ "NET_ADMIN" ]'
-image: pihole/pihole:2023.05.2
+image: pihole/pihole:2023.11.0
 ports:
   - containerPort: 53
     protocol: UDP
