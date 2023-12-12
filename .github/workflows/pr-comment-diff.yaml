@@ -1,0 +1,105 @@
+name: Comment diff
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths-ignore:
+      - '.github/**'
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  argocd-diff:
+    runs-on: self-hosted
+    steps:
+      # Checkout repo
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Set secrets from environment variables
+      - name: Set secrets
+        run: |
+          for var in $(printenv | grep ^K8S_SECRET); do
+            VAR_NAME=$(echo $var | cut -d'=' -f1 | sed 's/K8S_SECRET_//g')
+            echo $VAR_NAME
+            VAR_VALUE=$(echo $var | cut -d'=' -f2)
+            echo "${VAR_NAME}=${VAR_VALUE}" >> $GITHUB_ENV
+            echo "::add-mask::${VAR_VALUE}"
+          done
+      # Install argocd cli
+      - name: Setup ArgoCD
+        run: |
+          # Install argocd
+          mkdir -p ~/bin
+          curl -sSL -o ~/bin/argocd https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
+          # Make executable
+          chmod +x ~/bin/argocd
+          # Add bin to PATH in GITHUB_ENV
+          echo "PATH=$PATH:~/bin" >> $GITHUB_ENV
+
+      - name: Diff ArgoCD app
+        id: argocd-diff
+        env:
+          ARGOCD_USER: ${{ env.ARGOCD_USER }}
+          ARGOCD_PASSWORD: ${{ env.ARGOCD_PASSWORD }}
+          ARGOCD_SERVER: ${{ env.ARGOCD_SERVER }}
+        shell: bash
+        run: |
+          # Login to argocd
+          ~/bin/argocd login "$ARGOCD_SERVER" --username "$ARGOCD_USER" --password "$ARGOCD_PASSWORD" --insecure --plaintext
+          
+          app_diff=$(~/bin/argocd app diff pihole --server "$ARGOCD_SERVER" --server-side-generate --local $(pwd) --insecure || true)
+          
+          echo -e "$app_diff"
+          
+          # Write app_diff to output
+          echo "ARGOCD_APP_DIFF<<EOF"$'\n'"$app_diff"$'\n'EOF >> "$GITHUB_OUTPUT"
+
+      - name: Update diff comment
+        uses: actions/github-script@v7
+        env:
+          DIFF_COMMENT: ${{ steps.argocd-diff.outputs.ARGOCD_APP_DIFF }}
+        with:
+          script: |
+            const commentBody = "## ArgoCD app diff:\n\n```" + process.env.DIFF_COMMENT + "\n```\n";
+
+            const comments = await github.rest.issues.listComments({
+              issue_number: context.payload.pull_request.number, 
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+            });
+            
+            if (comments.length === 0) {
+              // No comments, create a default one
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.payload.pull_request.number,
+                body: commentBody
+              })
+            } else {
+              // Check existing comments
+              const existingComment = comments.data.find(c => c.body.includes('ArgoCD app diff'));
+
+              if (existingComment) {
+                // Update existing comment
+                await github.rest.issues.updateComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  comment_id: existingComment.id,
+                  body: commentBody
+                })
+              } else {
+                // Create new comment
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: context.payload.pull_request.number,
+                  body: commentBody
+                })
+              }
+            }
+          github-token: ${{ secrets.GITHUB_TOKEN }}
