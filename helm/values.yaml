@@ -17,6 +17,12 @@ ports:
   - containerPort: 67
     protocol: UDP
     name: pihole-dhcp
+requests:
+  cpu: 100m
+  memory: 256Mi
+limits:
+  cpu: 200m
+  memory: 512Mi
 env:
   - name: TZ
     value: "Europe/London"
