@@ -52,12 +52,11 @@ spec:
           {{ end }}
           resources:
             requests:
-              cpu: {{ .resources.requests.cpu }}
-              memory: {{ .resources.requests.memory }}
+              cpu: {{ .Values.resources.requests.cpu }}
+              memory: {{ .Values.resources.requests.memory }}
             limits:
-              cpu: {{ .resources.limits.cpu }}
-              memory: {{ .resources.limits.memory }}
-          {{ if or (gt (len .env) 0) (gt (len .envSecrets) 0) }}
+              cpu: {{ .Values.resources.limits.cpu }}
+              memory: {{ .Values.resources.limits.memory }}
           {{- if or (gt (len .Values.env) 0) (gt (len .Values.env_from) 0) }}
           env:
             {{ range .Values.env }}
@@ -71,7 +70,7 @@ spec:
                   name: {{ .secret_key_name }}
                   key: {{ .key }}
             {{ end }}
-          {{ end }}
+          {{- end }}
           {{ if gt (len .Values.volume_mounts) 0}}
           volumeMounts:
             {{ range .Values.volume_mounts }}
