@@ -10,6 +10,7 @@ on:
 permissions:
   contents: read
   pull-requests: write
+  id-token: write
 
 jobs:
   argocd-diff:
@@ -19,16 +20,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # Set secrets from environment variables
-      - name: Set secrets
-        run: |
-          for var in $(printenv | grep ^K8S_SECRET); do
-            VAR_NAME=$(echo $var | cut -d'=' -f1 | sed 's/K8S_SECRET_//g')
-            echo $VAR_NAME
-            VAR_VALUE=$(echo $var | cut -d'=' -f2)
-            echo "${VAR_NAME}=${VAR_VALUE}" >> $GITHUB_ENV
-            echo "::add-mask::${VAR_VALUE}"
-          done
+      - name: Import Secrets
+        id: import-secrets
+        uses: hashicorp/vault-action@v2
+        with:
+          url: https://vault.tjth.co
+          method: jwt
+          role: kb
+          secrets: |
+                secret/data/argocd/credentials ARGOCD_USER;
+                secret/data/argocd/credentials ARGOCD_PASSWORD;
+                secret/data/argocd/credentials ARGOCD_SERVER;
       # Install argocd cli
       - name: Setup ArgoCD
         run: |
@@ -43,9 +45,9 @@ jobs:
       - name: Diff ArgoCD app
         id: argocd-diff
         env:
-          ARGOCD_USER: ${{ env.ARGOCD_USER }}
-          ARGOCD_PASSWORD: ${{ env.ARGOCD_PASSWORD }}
-          ARGOCD_SERVER: ${{ env.ARGOCD_SERVER }}
+          ARGOCD_USER: ${{ steps.import-secrets.outputs.ARGOCD_USER }}
+          ARGOCD_PASSWORD: ${{ steps.import-secrets.outputs.ARGOCD_PASSWORD }}
+          ARGOCD_SERVER: ${{ steps.import-secrets.outputs.ARGOCD_SERVER }}
         shell: bash
         run: |
           # Login to argocd
