@@ -26,7 +26,7 @@ jobs:
         with:
           url: https://vault.tjth.co
           method: jwt
-          role: kb
+          role: tjth-pihole
           secrets: |
                 secret/data/argocd/credentials ARGOCD_USER;
                 secret/data/argocd/credentials ARGOCD_PASSWORD;
